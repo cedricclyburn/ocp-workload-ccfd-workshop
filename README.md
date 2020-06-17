@@ -1,1 +1,0 @@
-# ocp-workload-ccfd-workshop
