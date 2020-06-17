@@ -1,5 +1,13 @@
 = ocp-workload-ccfd-workshop - AL/ML ccfd lab environment
 
+This workshop workload will create user(s) project to deploy the link:http://opendatahub.io[Open Data Hub] Fraud Detection with Business Workflows workflow.
+
+The individual workload task includes
+
+* Creation of the project and project ccfd for the user
+* Deploy the Open Data Hub and Strimzi Operator
+* Create fraud detection model with Prometheus metric scraping
+
 == Role overview
 
 * This is a simple role that does the following:
