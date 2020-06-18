@@ -46,29 +46,45 @@
         dest: "{{ tmp_git_location }}"
         track_submodules: yes
 
+    - name: Deploy ODH
+      command: "oc create -f {{ tmp_git_location }}/deploy/crds/opendatahub_v1alpha1_opendatahub_crd.yaml"
+
+    - name: Deploy Seldon CRD
+      command: "oc create -f {{ tmp_git_location }}/deploy/crds/seldon-deployment-crd.yaml"
+
+    - name: Create the services & RBAC policy
+      command: "{{item}}"
+      with_items:
+       - oc create -f {{ tmp_git_location }}/deploy/service_account.yaml
+       - oc create -f {{ tmp_git_location }}/deploy/role.yaml
+       - oc create -f {{ tmp_git_location }}/deploy/role_binding.yaml
+       - oc adm policy add-role-to-user admin -z opendatahub-operator
+
+    - name: Deploy ODH
+      command: "oc create -f {{ tmp_git_location }}/deploy/operator.yaml"
+
+    - pause:
+      prompt: "Waiting for {{ project_name }}"
+      seconds: 30
+
+    - copy:
+        src: {{ tmp_git_location }}/deploy/crds/opendatahub_v1alpha1_opendatahub_cr.yaml
+        dest: {{ tmp_git_location }}/frauddetection_cr.yaml
+
+    - name: Replace values in Seldon/Kafka deployment
+        replace:
+        path: {{ tmp_git_location }}/frauddetection_cr.yaml
+        regexp: 'odh_deploy: false'
+        replace: 'odh_deploy: true'
+
+    - name: Insert username to kafka_admins list
+      lineinfile:
+        path: {{ tmp_git_location }}/deploy/kafka/vars/vars.yaml
+        line: - {{ ocp_username }}
+
+    - name: Pipenv install
+      command: "{{item}}"
+      with_items: 
+       - "chdir=deploy/kafka/ pipenv install"
+
     
-
-    - name: Create deployment, chdir first
-      command: "{{ tmp_git_location }}/.workshop/scripts/deploy-spawner.sh --override SERVER_LIMIT=0  --override PREPULL_IMAGES=true --override CLEAN_INSTALL=true"
-      retries: 10
-      delay: 30
-      register: result
-      until: result is not failed
-      args:
-        chdir: "{{ tmp_git_location }}"
-
-    - name: Show deploy workshop regular output
-      debug: 
-        var: result.stdout_lines
-      when: result.stdout_lines is defined and result.stdout_lines | length > 0
-
-    - name: Show deploy workshop error output
-      debug: 
-        var: result.stderr_lines
-      when: result.stderr_lines is defined and result.stderr_lines | length > 0
-      
-# Leave this as the last task in the playbook.
-- name: workload tasks complete
-  debug:
-    msg: "Workload Tasks completed successfully."
-  when: not silent|bool
